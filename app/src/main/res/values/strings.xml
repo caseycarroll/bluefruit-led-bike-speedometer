@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">LED Speedometer</string>
+    <string name="current_speed_label">Current Speed</string>
+    <string name="speed_unit">meters/second</string>
+    <string name="connect">Connect</string>
+    <string name="connected">connected</string>
+    <string name="disconnected">disconnected</string>
+</resources>
