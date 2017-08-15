@@ -13,13 +13,17 @@ import android.bluetooth.BluetoothProfile;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanResult;
+import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.databinding.DataBindingUtil;
 import android.location.Location;
 import android.os.Handler;
+import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -41,9 +45,6 @@ import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity {
 
-    public static final String UUID_SERVICE = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-    public static final String UUID_TX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
-
     private static final int MY_PERMISSION_FINE_LOCATION = 123;
     private final int REQUEST_ENABLE_BT = 132;
     private final int LOCATION_UPDATE_INTERVAL = 50;
@@ -55,15 +56,48 @@ public class MainActivity extends AppCompatActivity {
     private LocationRequest mLocationRequest;
     private User mUser;
 
-    private Location oldLocation;
     private BluetoothAdapter mBluetoothAdapter;
     private BluetoothLeScanner mLeBluetootchScanner;
     private ScanCallback mScanCallback;
     private Handler mHandler;
     private BluetoothDevice BlueFruit;
+    private BLEGattService mBLEGattService;
 
     private Button connectButton;
-    private BluetoothGatt mBluetoothGatt;
+
+    private final ServiceConnection mServiceConnection = new ServiceConnection() {
+
+        @Override
+        public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
+            mBLEGattService = ((BLEGattService.LocalBinder) iBinder).getService();
+            if (!mBLEGattService.initialize()) {
+                Log.e(TAG, "onServiceConnected: could not initialize BLE service, exiting");
+                finish();
+            }
+
+            mBLEGattService.connect(BlueFruit.getAddress());
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName componentName) {
+
+        }
+    };
+
+    private final BroadcastReceiver mGattReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            final String action = intent.getAction();
+            if (BLEGattService.ACTION_GATT_CONNECTED.equals(action)) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        connectButton.setEnabled(false);
+                    }
+                });
+            }
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -119,10 +153,14 @@ public class MainActivity extends AppCompatActivity {
         mScanCallback = new BtleScanCallback();
     }
 
+
+
     private void connectToBlueFruit() {
         Log.d(TAG, "connectToBlueFruit: Requested to connect with bluefruit");
         //TODO: Start service for GATT communication
         //mBluetoothGatt = BlueFruit.connectGatt(this, false, mGattCallback);
+        Intent BLEGattIntent = new Intent(this, BLEGattService.class);
+        bindService(BLEGattIntent, mServiceConnection, BIND_AUTO_CREATE);
     }
 
     private void startLeScanTask() {
@@ -159,12 +197,6 @@ public class MainActivity extends AppCompatActivity {
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
     }
 
-    private void disconnectFromBluefruit() {
-        if(mBluetoothGatt != null) {
-            mBluetoothGatt.disconnect();
-        }
-    }
-
     @SuppressLint("MissingPermission")
     private void startLocationUpdates() {
         mFusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallback, null);
@@ -192,13 +224,15 @@ public class MainActivity extends AppCompatActivity {
         }
         mLeBluetootchScanner = mBluetoothAdapter.getBluetoothLeScanner();
         startLeScanTask();
+        registerReceiver(mGattReceiver, makeGattUpdateIntentFilter());
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         stopLocationUpdates();
-        disconnectFromBluefruit();
+        unbindService(mServiceConnection);
+        unregisterReceiver(mGattReceiver);
     }
 
     private class BtleScanCallback extends ScanCallback {
@@ -213,5 +247,11 @@ public class MainActivity extends AppCompatActivity {
                 connectButton.setEnabled(true);
             }
         }
+    }
+
+    private static IntentFilter makeGattUpdateIntentFilter() {
+        final IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(BLEGattService.ACTION_GATT_CONNECTED);
+        return intentFilter;
     }
 }
