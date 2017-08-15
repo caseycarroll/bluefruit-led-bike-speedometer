@@ -37,8 +37,12 @@ import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 
 import java.util.List;
+import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity {
+
+    public static final String UUID_SERVICE = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+    public static final String UUID_TX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
 
     private static final int MY_PERMISSION_FINE_LOCATION = 123;
     private final int REQUEST_ENABLE_BT = 132;
@@ -60,7 +64,6 @@ public class MainActivity extends AppCompatActivity {
 
     private Button connectButton;
     private BluetoothGatt mBluetoothGatt;
-    private android.bluetooth.BluetoothGattCallback mGattCallback;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -113,76 +116,13 @@ public class MainActivity extends AppCompatActivity {
         mBluetoothAdapter = bluetoothManager.getAdapter();
 
         // callback that looks for bluefruit device
-        mScanCallback = new ScanCallback() {
-            @Override
-            public void onScanResult(int callbackType, ScanResult result) {
-                super.onScanResult(callbackType, result);
-                if(result.getDevice().getName() != null
-                        && result.getDevice().getName().equalsIgnoreCase("bluefruit52")) {
-                    Log.d(TAG, "onScanResult: recognized bluefruit");
-                    BlueFruit = result.getDevice();
-                    mLeBluetootchScanner.stopScan(mScanCallback);
-                    connectButton.setEnabled(true);
-                }
-            }
-        };
-
-        mGattCallback = new BluetoothGattCallback() {
-            @Override
-            public void onServicesDiscovered(BluetoothGatt gatt, int status) {
-                super.onServicesDiscovered(gatt, status);
-                if (status == BluetoothGatt.GATT_SUCCESS) {
-                    Log.d(TAG, "onServicesDiscovered: Communication is ready");
-                    for (BluetoothGattService service: gatt.getServices()) {
-                        Log.d(TAG, "onServicesDiscovered: Service: " + service);
-                    }
-                }
-            }
-
-            @Override
-            public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-                super.onCharacteristicWrite(gatt, characteristic, status);
-                Log.d(TAG, "onCharacteristicWrite: ");
-            }
-
-            @Override
-            public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-                super.onConnectionStateChange(gatt, status, newState);
-
-                switch (newState) {
-                    case BluetoothProfile.STATE_CONNECTED:
-                        Log.d(TAG, "onConnectionStateChange: Connection made with Bluefruit");
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                connectButton.setText(R.string.connected);
-                                connectButton.setEnabled(false);
-                            }
-                        });
-
-                        mBluetoothGatt.discoverServices();
-
-                        break;
-                    case BluetoothProfile.STATE_DISCONNECTED:
-                        Log.d(TAG, "onConnectionStateChange: Disconnected with Bluefruit");
-                        mBluetoothGatt.close();
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                connectButton.setText(R.string.connect);
-                                connectButton.setEnabled(true);
-                            }
-                        });
-                        break;
-                    default:
-                        Log.d(TAG, "onConnectionStateChange: Status wasn't detected...");
-                }
-            }
-        };
+        mScanCallback = new BtleScanCallback();
     }
 
     private void connectToBlueFruit() {
-        mBluetoothGatt = BlueFruit.connectGatt(this, false, mGattCallback);
+        Log.d(TAG, "connectToBlueFruit: Requested to connect with bluefruit");
+        //TODO: Start service for GATT communication
+        //mBluetoothGatt = BlueFruit.connectGatt(this, false, mGattCallback);
     }
 
     private void startLeScanTask() {
@@ -219,6 +159,21 @@ public class MainActivity extends AppCompatActivity {
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
     }
 
+    private void disconnectFromBluefruit() {
+        if(mBluetoothGatt != null) {
+            mBluetoothGatt.disconnect();
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private void startLocationUpdates() {
+        mFusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallback, null);
+    }
+
+    private void stopLocationUpdates() {
+        mFusedLocationClient.removeLocationUpdates(mLocationCallback);
+    }
+
     @Override
     protected void onStart() {
         super.onStart();
@@ -246,18 +201,17 @@ public class MainActivity extends AppCompatActivity {
         disconnectFromBluefruit();
     }
 
-    private void disconnectFromBluefruit() {
-        if(mBluetoothGatt != null) {
-            mBluetoothGatt.disconnect();
+    private class BtleScanCallback extends ScanCallback {
+        @Override
+        public void onScanResult(int callbackType, ScanResult result) {
+            super.onScanResult(callbackType, result);
+            if(result.getDevice().getName() != null
+                    && result.getDevice().getName().equalsIgnoreCase("bluefruit52")) {
+                Log.d(TAG, "onScanResult: recognized bluefruit");
+                BlueFruit = result.getDevice();
+                mLeBluetootchScanner.stopScan(mScanCallback);
+                connectButton.setEnabled(true);
+            }
         }
-    }
-
-    @SuppressLint("MissingPermission")
-    private void startLocationUpdates() {
-        mFusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallback, null);
-    }
-
-    private void stopLocationUpdates() {
-        mFusedLocationClient.removeLocationUpdates(mLocationCallback);
     }
 }
