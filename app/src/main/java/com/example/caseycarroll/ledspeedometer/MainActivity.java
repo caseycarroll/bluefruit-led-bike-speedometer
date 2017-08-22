@@ -45,6 +45,9 @@ import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity {
 
+    public static final String UUID_SERVICE = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+    public static final String UUID_TX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+
     private static final int MY_PERMISSION_FINE_LOCATION = 123;
     private final int REQUEST_ENABLE_BT = 132;
     private final int LOCATION_UPDATE_INTERVAL = 50;
@@ -52,16 +55,19 @@ public class MainActivity extends AppCompatActivity {
     private String TAG = "MainActivity";
     private FusedLocationProviderClient mFusedLocationClient;
     private boolean mRequestingLocationUpdates;
-    private LocationCallback mLocationCallback;
     private LocationRequest mLocationRequest;
     private User mUser;
 
     private BluetoothAdapter mBluetoothAdapter;
-    private BluetoothLeScanner mLeBluetootchScanner;
+    private BluetoothLeScanner mLeBluetoothScanner;
     private ScanCallback mScanCallback;
     private Handler mHandler;
     private BluetoothDevice BlueFruit;
     private BLEGattService mBLEGattService;
+
+    private BluetoothGattService UARTService;
+    private BluetoothGattCharacteristic mWriteChar;
+    private UUID writeUUID;
 
     private Button connectButton;
 
@@ -95,7 +101,25 @@ public class MainActivity extends AppCompatActivity {
                         connectButton.setEnabled(false);
                     }
                 });
+            } else if (BLEGattService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
+                Log.d(TAG, "onReceive: list of services: "+ mBLEGattService.getSupportedGattServices());
+                UARTService = mBLEGattService.getUARTService(UUID_SERVICE);
+                writeUUID = UUID.fromString(UUID_TX);
+                mWriteChar = UARTService.getCharacteristic(writeUUID);
+                Log.d(TAG, "onReceive: Characteristic created: " + mWriteChar);
             }
+        }
+    };
+
+    //set up a location callback
+    private LocationCallback mLocationCallback = new LocationCallback() {
+        @Override
+        public void onLocationResult(LocationResult locationResult) {
+            //after every successful result, update speed value on UI
+            Location location = locationResult.getLastLocation();
+            mUser.userSpeed.set(location.getSpeed());
+            if(mWriteChar == null) return;
+            mBLEGattService.writeCharacteristic(mWriteChar);
         }
     };
 
@@ -131,22 +155,12 @@ public class MainActivity extends AppCompatActivity {
         //create instance of fused location provider
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
-        //set up a location callback
-        mLocationCallback = new LocationCallback() {
-            @Override
-            public void onLocationResult(LocationResult locationResult) {
-                    //after every successful result, update speed value on UI
-                    Location location = locationResult.getLastLocation();
-                    mUser.userSpeed.set(location.getSpeed());
-            }
-        };
-
         //create a location request object
         createLocationRequest();
 
         //Initialize Bluetooth adapter
         final BluetoothManager bluetoothManager =
-                (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE); //TODO: try contextcompat
+                (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
         mBluetoothAdapter = bluetoothManager.getAdapter();
 
         // callback that looks for bluefruit device
@@ -167,11 +181,11 @@ public class MainActivity extends AppCompatActivity {
         mHandler.postDelayed(new Runnable() {
             @Override
             public void run() {
-                mLeBluetootchScanner.stopScan(mScanCallback);
+                mLeBluetoothScanner.stopScan(mScanCallback);
             }
         }, 20000);
 
-        mLeBluetootchScanner.startScan(mScanCallback);
+        mLeBluetoothScanner.startScan(mScanCallback);
     }
 
     @Override
@@ -222,7 +236,7 @@ public class MainActivity extends AppCompatActivity {
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
         }
-        mLeBluetootchScanner = mBluetoothAdapter.getBluetoothLeScanner();
+        mLeBluetoothScanner = mBluetoothAdapter.getBluetoothLeScanner();
         startLeScanTask();
         registerReceiver(mGattReceiver, makeGattUpdateIntentFilter());
     }
@@ -243,7 +257,7 @@ public class MainActivity extends AppCompatActivity {
                     && result.getDevice().getName().equalsIgnoreCase("bluefruit52")) {
                 Log.d(TAG, "onScanResult: recognized bluefruit");
                 BlueFruit = result.getDevice();
-                mLeBluetootchScanner.stopScan(mScanCallback);
+                mLeBluetoothScanner.stopScan(mScanCallback);
                 connectButton.setEnabled(true);
             }
         }
