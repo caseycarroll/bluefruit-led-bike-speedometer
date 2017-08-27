@@ -53,13 +53,15 @@ public class BLEGattService extends Service {
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             if(status == BluetoothGatt.GATT_SUCCESS) {
                 Log.d(TAG, "onServicesDiscovered: Discovered Gatt Services");
-                broadcastUpdate(ACTION_GATT_SERVICES_DISCOVERED);
+                intentAction = ACTION_GATT_SERVICES_DISCOVERED;
+                broadcastUpdate(intentAction);
             }
         }
     };
 
     private void broadcastUpdate(String intentAction) {
         final Intent intent = new Intent(intentAction);
+        Log.d(TAG, "broadcastUpdate: " + intent);
         sendBroadcast(intent);
     }
 

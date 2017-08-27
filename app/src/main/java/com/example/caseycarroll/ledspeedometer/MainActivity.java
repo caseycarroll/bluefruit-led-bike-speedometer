@@ -93,6 +93,7 @@ public class MainActivity extends AppCompatActivity {
     private final BroadcastReceiver mGattReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
+            Log.d(TAG, "onReceive: received broadcast");
             final String action = intent.getAction();
             if (BLEGattService.ACTION_GATT_CONNECTED.equals(action)) {
                 runOnUiThread(new Runnable() {
@@ -101,7 +102,8 @@ public class MainActivity extends AppCompatActivity {
                         connectButton.setEnabled(false);
                     }
                 });
-            } else if (BLEGattService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
+            }
+            if (BLEGattService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
                 Log.d(TAG, "onReceive: list of services: "+ mBLEGattService.getSupportedGattServices());
                 UARTService = mBLEGattService.getUARTService(UUID_SERVICE);
                 writeUUID = UUID.fromString(UUID_TX);
@@ -266,6 +268,7 @@ public class MainActivity extends AppCompatActivity {
     private static IntentFilter makeGattUpdateIntentFilter() {
         final IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(BLEGattService.ACTION_GATT_CONNECTED);
+        intentFilter.addAction(BLEGattService.ACTION_GATT_SERVICES_DISCOVERED);
         return intentFilter;
     }
 }

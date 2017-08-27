@@ -27,8 +27,7 @@
 
         <service
             android:name=".BLEGattService"
-            android:enabled="true"
-            android:exported="true"/>
+            android:enabled="true"/>
 
     </application>
 
