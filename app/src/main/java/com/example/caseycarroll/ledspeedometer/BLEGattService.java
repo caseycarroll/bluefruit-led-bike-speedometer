@@ -114,6 +114,7 @@ public class BLEGattService extends Service {
             Log.w(TAG, "BluetoothAdapter not initialized");
             return;
         }
+        Log.d(TAG, "writeCharacteristic: attempting to write characteristic");
         mBluetoothGatt.writeCharacteristic(characteristic);
     }
 

@@ -21,6 +21,7 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.databinding.DataBindingUtil;
+import android.graphics.Color;
 import android.location.Location;
 import android.os.Handler;
 import android.os.IBinder;
@@ -40,6 +41,8 @@ import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 
+import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
 import java.util.List;
 import java.util.UUID;
 
@@ -108,6 +111,7 @@ public class MainActivity extends AppCompatActivity {
                 UARTService = mBLEGattService.getUARTService(UUID_SERVICE);
                 writeUUID = UUID.fromString(UUID_TX);
                 mWriteChar = UARTService.getCharacteristic(writeUUID);
+
                 Log.d(TAG, "onReceive: Characteristic created: " + mWriteChar);
             }
         }
@@ -121,6 +125,15 @@ public class MainActivity extends AppCompatActivity {
             Location location = locationResult.getLastLocation();
             mUser.userSpeed.set(location.getSpeed());
             if(mWriteChar == null) return;
+
+            int color = Color.RED;
+
+            byte red = (byte) Color.red(color);
+            byte green = (byte) Color.green(color);
+            byte blue = (byte) Color.blue(color);
+
+            byte[] data = {0x43, red, green, blue};
+            mWriteChar.setValue(data);
             mBLEGattService.writeCharacteristic(mWriteChar);
         }
     };
