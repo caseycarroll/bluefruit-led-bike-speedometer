@@ -124,19 +124,52 @@ public class MainActivity extends AppCompatActivity {
             //after every successful result, update speed value on UI
             Location location = locationResult.getLastLocation();
             mUser.userSpeed.set(location.getSpeed());
-            if(mWriteChar == null) return;
-
-            int color = Color.RED;
-
-            byte red = (byte) Color.red(color);
-            byte green = (byte) Color.green(color);
-            byte blue = (byte) Color.blue(color);
-
-            byte[] data = {0x43, red, green, blue};
-            mWriteChar.setValue(data);
-            mBLEGattService.writeCharacteristic(mWriteChar);
+            sendData(location.getSpeed());
         }
     };
+
+    private void sendData(float speed) {
+        if(mWriteChar == null) return;
+
+        int color = Color.RED;
+        Log.d(TAG, "sendData: speed: " + speed);
+        if(speed < 1) {
+            color = Color.RED;
+        }
+        if(speed < 3 && speed >= 1) {
+            color = Color.YELLOW;
+        }
+        if(speed > 3) {
+            color = Color.GREEN;
+        }
+
+
+        byte red = (byte) Color.red(color);
+        byte green = (byte) Color.green(color);
+        byte blue = (byte) Color.blue(color);
+
+        byte[] data = {0x21, 0x43, red, green, blue};
+
+
+        // Calculate checksum
+        byte checksum = 0;
+        for (byte aData : data) {
+            checksum += aData;
+        }
+        checksum = (byte) (~checksum);       // Invert
+
+        // Add crc to data
+        byte dataCrc[] = new byte[data.length + 1];
+        System.arraycopy(data, 0, dataCrc, 0, data.length);
+        dataCrc[data.length] = checksum;
+
+
+        String testString = "testing";
+        byte test[] = testString.getBytes(Charset.forName("UTF-8"));
+
+        mWriteChar.setValue(dataCrc);
+        mBLEGattService.writeCharacteristic(mWriteChar);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

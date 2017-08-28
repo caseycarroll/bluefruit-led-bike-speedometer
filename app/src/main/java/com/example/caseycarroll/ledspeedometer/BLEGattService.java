@@ -109,11 +109,17 @@ public class BLEGattService extends Service {
         return mBluetoothGatt.getService(writeUUID);
     }
 
+    static int counter = 0;
     public void writeCharacteristic(BluetoothGattCharacteristic characteristic) {
+        counter++;
         if (mBluetoothAdapter == null || mBluetoothGatt == null) {
             Log.w(TAG, "BluetoothAdapter not initialized");
             return;
         }
+//        if(counter > 1) {
+//            Log.d(TAG, "writeCharacteristic: counter exceeded");
+//            return;
+//        }
         Log.d(TAG, "writeCharacteristic: attempting to write characteristic");
         mBluetoothGatt.writeCharacteristic(characteristic);
     }
